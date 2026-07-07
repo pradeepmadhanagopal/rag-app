@@ -51,9 +51,3 @@ Question: {question}"""
     return response.content[0].text
 
 
-if __name__ == "__main__":
-    while True:
-        q = input("\nAsk about the lecture (or 'quit'): ")
-        if q.lower() == "quit":
-            break
-        print("\n" + answer(q)) 
