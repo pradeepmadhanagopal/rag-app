@@ -63,3 +63,11 @@ These are deliberate starting values, to be tuned against retrieval evals
 - [ ] Persistent vector store (ChromaDB)
 - [ ] Retrieval evals (RAGAS) + parameter tuning
 - [ ] Deployment with CI/CD
+
+## Run with Docker
+
+docker build -t rag-app .
+docker run -p 8000:8000 --env-file .env rag-app
+
+Note: image is currently ~8.6GB on disk (torch + CUDA libs); slimming via
+CPU-only torch is a known optimisation on the roadmap.
