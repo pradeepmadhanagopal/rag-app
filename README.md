@@ -39,7 +39,7 @@ Then open http://127.0.0.1:8000/docs for interactive API documentation.
 | Chunk size | 900 chars | sliding window |
 | Overlap | 150 chars | preserves ideas cut at boundaries |
 | Top-k | 3 | retrieval candidates |
-| Similarity threshold | 0.25 | floor below which chunks are dropped |
+| Similarity threshold | 0.65 | floor below which chunks are dropped |
 
 These are deliberate starting values, to be tuned against retrieval evals
 (RAGAS) in an upcoming iteration.
@@ -59,8 +59,8 @@ These are deliberate starting values, to be tuned against retrieval evals
 
 - [x] End-to-end RAG pipeline
 - [x] FastAPI service layer
-- [ ] Dockerise
-- [ ] Persistent vector store (ChromaDB)
+- [x] Dockerise
+- [x] Persistent vector store (ChromaDB)
 - [ ] Retrieval evals (RAGAS) + parameter tuning
 - [ ] Deployment with CI/CD
 
@@ -71,3 +71,10 @@ docker run -p 8000:8000 --env-file .env rag-app
 
 Note: image is currently ~8.6GB on disk (torch + CUDA libs); slimming via
 CPU-only torch is a known optimisation on the roadmap.
+
+**Threshold calibration**: migrating from in-memory cosine scoring to
+  ChromaDB's cosine-distance scale silently shifted score ranges — irrelevant
+  near-domain chunks moved from ~0.05 to ~0.59, breaking the original 0.25
+  threshold. Recalibrated to 0.65 using the gap between genuine matches
+  (0.76) and the irrelevant ceiling (0.59), verified with positive and
+  negative test queries. Proper eval-set calibration (RAGAS) is the next step.
