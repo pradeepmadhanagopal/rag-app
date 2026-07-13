@@ -1,39 +1,61 @@
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
-import anthropic 
+import anthropic
+import chromadb
 
-from loader import chunk_text, load_pdf
+from loader import load_pdf, chunk_text
 
 load_dotenv()
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
-print("loading and chunking documets...")
-text = load_pdf("docs/4a_Convolution.pdf")
-chunks = chunk_text(text)
-
-print(f"embedding {len(chunks)} chunks...")
-model = SentenceTransformer("all-MiniLM-L6-v2")
-chunk_embeddings = model.encode(chunks)
-
 client = anthropic.Anthropic()
 
-def retrieve(question: str, k: int = 3, threshold: float =0.5) -> list[str]:
-    query_embedding = model.encode(question)
-    scores = util.cos_sim(query_embedding, chunk_embeddings)[0]
-    
-    ranked = sorted(zip(scores.tolist(), chunks), key=lambda x: x[0], reverse=True)
 
-    selected = [(s,c) for s,c in ranked[:k] if s > threshold]
+db = chromadb.PersistentClient(path="chroma_db")
+collection = db.get_or_create_collection("lecture_notes", metadata={"hnsw:space": "cosine"})
 
-    print("\n Retrieved Chunks:")
-    for s,c in selected:
-        print(f" score={s:.3f} preview: {c[:60]}!r")
 
-    return [c for _,c in selected]
+if collection.count() == 0:
+    print("Empty collection — indexing documents...")
+    text = load_pdf("docs/4a_Convolution.pdf")
+    chunks = chunk_text(text)
+    print(f"Embedding {len(chunks)} chunks...")
+    embeddings = model.encode(chunks)
+    collection.add(
+        ids=[f"conv-{i}" for i in range(len(chunks))],
+        embeddings=embeddings.tolist(),
+        documents=chunks,
+        metadatas=[{"source": "4a_Convolution.pdf", "position": i} for i in range(len(chunks))],
+    )
+else:
+    print(f"Loaded existing index: {collection.count()} chunks")
+
+
+
+def retrieve(question: str, k: int = 3, threshold: float = 0.65) -> list[str]:
+    q_emb = model.encode(question)
+    results = collection.query(query_embeddings=[q_emb.tolist()], n_results=k)
+
+    docs = results["documents"][0]
+    distances = results["distances"][0]  # NOTE: distances, not similarities!
+
+    selected = []
+    print("\nRetrieved chunks:")
+    for doc, dist in zip(docs, distances):
+        similarity = 1 - dist / 2  # convert Chroma's distance back to a similarity-like score
+        if similarity >= threshold:
+            print(f"  score={similarity:.3f}  preview: {doc[:60]!r}")
+            selected.append(doc)
+    return selected
+
+
 
 def answer(question: str) -> str:
-    context = "\n\n---\n\n".join(retrieve(question))
+    retrieved = retrieve(question)
+    if not retrieved:
+        return "I couldn't find anything relevant to that in the loaded documents."
+
+    context = "\n\n---\n\n".join(retrieved)
 
     prompt = f"""Answer the question using ONLY the context below from lecture notes.
 If the context doesn't contain the answer, say so.
@@ -49,5 +71,3 @@ Question: {question}"""
         messages=[{"role": "user", "content": prompt}],
     )
     return response.content[0].text
-
-
