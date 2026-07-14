@@ -30,23 +30,18 @@ if collection.count() == 0:
 else:
     print(f"Loaded existing index: {collection.count()} chunks")
 
+def retrieve_with_scores(question: str, k: int = 3, threshold: float = 0.65) -> list[tuple[str, float]]:
+    q_emb = model.encode(question)
+    results = collection.query(query_embeddings=[q_emb.tolist()], n_results=k)
+    docs = results["documents"][0]
+    distances = results["distances"][0]
+    
+    return [(doc, 1 - dist / 2) for doc, dist in zip(docs, distances) if (1 - dist / 2) >= threshold]    
+
 
 
 def retrieve(question: str, k: int = 3, threshold: float = 0.65) -> list[str]:
-    q_emb = model.encode(question)
-    results = collection.query(query_embeddings=[q_emb.tolist()], n_results=k)
-
-    docs = results["documents"][0]
-    distances = results["distances"][0]  # NOTE: distances, not similarities!
-
-    selected = []
-    print("\nRetrieved chunks:")
-    for doc, dist in zip(docs, distances):
-        similarity = 1 - dist / 2  # convert Chroma's distance back to a similarity-like score
-        if similarity >= threshold:
-            print(f"  score={similarity:.3f}  preview: {doc[:60]!r}")
-            selected.append(doc)
-    return selected
+   return [doc for doc, _ in retrieve_with_scores(question, k, threshold)]
 
 
 
