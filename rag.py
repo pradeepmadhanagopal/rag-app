@@ -17,7 +17,7 @@ collection = db.get_or_create_collection("lecture_notes", metadata={"hnsw:space"
 
 if collection.count() == 0:
     print("Empty collection — indexing documents...")
-    text = load_pdf("docs/4a_Convolution.pdf")
+    text = load_pdf("docs/convolution-notes.pdf")
     chunks = chunk_text(text)
     print(f"Embedding {len(chunks)} chunks...")
     embeddings = model.encode(chunks)
@@ -25,7 +25,7 @@ if collection.count() == 0:
         ids=[f"conv-{i}" for i in range(len(chunks))],
         embeddings=embeddings.tolist(),
         documents=chunks,
-        metadatas=[{"source": "4a_Convolution.pdf", "position": i} for i in range(len(chunks))],
+        metadatas=[{"source": "convolution-notes.pdf", "position": i} for i in range(len(chunks))],
     )
 else:
     print(f"Loaded existing index: {collection.count()} chunks")

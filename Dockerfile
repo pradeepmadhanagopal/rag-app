@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Dependencies first — this layer is cached until requirements.txt changes
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
 
 # App code — changes often, so it comes after the expensive layer
 COPY . .
