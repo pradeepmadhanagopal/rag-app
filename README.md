@@ -61,7 +61,7 @@ These are deliberate starting values, to be tuned against retrieval evals
 - [x] FastAPI service layer
 - [x] Dockerise
 - [x] Persistent vector store (ChromaDB)
-- [ ] Retrieval evals (RAGAS) + parameter tuning
+- [x] Retrieval evals (RAGAS) + parameter tuning
 - [ ] Deployment with CI/CD
 
 ## Run with Docker
@@ -78,3 +78,30 @@ CPU-only torch is a known optimisation on the roadmap.
   threshold. Recalibrated to 0.65 using the gap between genuine matches
   (0.76) and the irrelevant ceiling (0.59), verified with positive and
   negative test queries. Proper eval-set calibration (RAGAS) is the next step.
+
+
+A 6-case eval suite (4 positive, 2 negative) measures retrieval quality on
+every change: `python3 eval_retrieval.py`.
+
+| Experiment | Hit rate | Notes |
+|---|---|---|
+| Baseline | 5/6 | scoring bug found & fixed first (see below) |
+| + text cleaning | 5/6 | artifacts fixed; failing case unmoved — not the cause |
+| + overlap 150→250 | 5/6 | failing case unmoved; degraded a passing case → reverted |
+
+The eval harness itself caught a real bug on first run: ChromaDB 1.x silently
+ignores the legacy `hnsw:space` metadata, so the collection used squared-L2
+while scores were converted with the cosine formula — every retrieval failed
+the threshold. Diagnosed from raw distances (L2² = 2·cosine-distance for
+normalised embeddings) and fixed with the correct conversion.
+
+### Known limitation: vocabulary mismatch
+
+One eval case fails persistently: "What did Hubel and Wiesel discover?"
+scores 0.56 against a chunk that is intact, clean, and contains the answer.
+Root cause: the question's framing ("discover") shares little semantic
+overlap with the slide's content (descriptions of cortex cell behaviour),
+and rare proper nouns are diluted in dense embeddings — a known limitation
+of pure semantic retrieval. Standard remedy is hybrid retrieval
+(dense + BM25 keyword search), scoped as future work. Lowering the
+threshold is not viable: negative-case chunks score up to 0.59.
