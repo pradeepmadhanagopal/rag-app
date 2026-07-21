@@ -15,6 +15,10 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
 
+@app.get("/")
+def root():
+    return {"service": "rag-app", "docs": "/docs", "health": "/health"}
+    
 @app.get("/health")
 def health():
     return {"status": "ok"}

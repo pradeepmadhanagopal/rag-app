@@ -1,3 +1,5 @@
+**Live:** https://rag-app-c6ny.onrender.com/docs
+
 # rag-app
 
 A Retrieval-Augmented Generation (RAG) API that answers questions from PDF
@@ -62,7 +64,7 @@ These are deliberate starting values, to be tuned against retrieval evals
 - [x] Dockerise
 - [x] Persistent vector store (ChromaDB)
 - [x] Retrieval evals (RAGAS) + parameter tuning
-- [ ] Deployment with CI/CD
+- [x] Deployment with CI/CD
 
 ## Run with Docker
 
@@ -105,3 +107,18 @@ and rare proper nouns are diluted in dense embeddings — a known limitation
 of pure semantic retrieval. Standard remedy is hybrid retrieval
 (dense + BM25 keyword search), scoped as future work. Lowering the
 threshold is not viable: negative-case chunks score up to 0.59.
+
+ ## Deployment notes & limitations
+  Deployed on Render (free tier) as a Docker container; secrets injected as
+  platform environment variables. `/ask` requires an `X-API-Key` header;
+  `/health` is open for platform health checks.
+
+  Known constraints:
+  - **Cold starts**: free instances sleep after inactivity; first request can
+    take ~30-60s while the container restarts and re-indexes.
+  - **Ephemeral disk**: the ChromaDB index is rebuilt on every restart. Fixes:
+    mount a persistent disk, or build the index into the image.
+  - **Image size**: 2.37GB, down from 8.92GB via CPU-only torch and curated
+    requirements (pip freeze had pinned 15 CUDA packages).
+  - **Extraction artifacts**: some PDF-extraction word joins ("isto",
+    "withineach") survive cleaning and appear in answers.
